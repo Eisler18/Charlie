@@ -2,7 +2,38 @@ from pyqtgraph.Qt import QtGui, QtCore
 import numpy as np 
 import pyqtgraph as pg 
 import sys
-import Serial 
+import serial
+	
+s = serial.Serial('COM8')
+s.baudrate = 115200
+s.set_buffer_size(rx_size = 12800)
+
+def serial():	
+	channel1 = []
+	channel2 = []
+	channeld1 = []
+	channeld2 = []
+	ndatos = 200
+	i = 0
+
+	byte1 = s.read(1)
+	while byte1 > b'\x80':
+		byte1 = s.read(1) 
+	datos = s.read(799)
+	
+	channel1.append(((ord(byte1) << 6)|(datos[0] & 63))/1024)
+
+	for i in range(200):
+		if i != 0:
+			channel1.append(((datos[4*(i-1)+3] << 6)|(datos[4*(i-1)+4] & 63))/1024)
+		channeld1.append(((datos[4*i]) & 64) >> 6)
+		channeld2.append((datos[4*i+1] & 64) >> 6)
+		channel2.append((((datos[4*i+1] & 63) << 6)|(datos[4*i+2] & 63))/1024)
+
+	#buf = str(s.in_waiting)
+	#print(buf)
+	return channel1, channel2, channeld1, channeld2
+
 
 class plot(object):
 	def __init__(self):
@@ -10,29 +41,30 @@ class plot(object):
 		self.c2 = True
 		self.cd1 = True
 		self.cd2 = True
+		self.lectura1 = True
+		self.pch1=[]
+		self.pch2=[]
+		self.pchd1=[]
+		self.pchd2=[]
+
 		self.traces= dict()
-		self.t= np.arange(0, 3, 3/Serial.numdatos())
+		self.t= np.arange(0, 1, 1/2000)
 		pg.setConfigOptions(antialias=True)
 		self.app=QtGui.QApplication(sys.argv)
 		self.win=pg.GraphicsWindow()
 		self.win.resize(1000,600)
 		self.win.setWindowTitle('pyqtgraph example')
-		n = 1/10 
-		axisX = [(n*0.33,' '),(n*0.66,' '),(n*1,' '),(n*1.33,' '),(n*1.66,' '),
-				(n*2,' '),(n*2.33,' '),(n*2.66,' '),(n*3,' ')]
-		""",(n*2,' '),
-		(n*2.2,' '),(n*2.4,' '),(n*2.6,' '),(n*2.8,' '),(n*3,'seg')]"""
-		self.CaxisX = pg.AxisItem(orientation='bottom')
-		self.CaxisX.setTicks([axisX])
+		n = 1
 		m = 1
-		axisY = [(0,' '),(m*1,' '),(m*2,' '),(m*3,' '),(m*4,'V')]
+		axisY = [(0,'0'),(m*1,'1'),(m*2,'2'),(m*3,'3'),(m*4,'4')]
 		self.CaxisY = pg.AxisItem(orientation='left')
 		self.CaxisY.setTicks([axisY])
-		self.Canvas = self.win.addPlot(row=0,col=0,colspan=4,title="Osciloscopio",axisItems={'bottom':self.CaxisX, 'left':self.CaxisY})
+		self.Canvas = self.win.addPlot(row=0,col=0,colspan=4,title="Osciloscopio",axisItems={'left':self.CaxisY})
 		self.Canvas.showGrid(x=True,y=True, alpha = 0.5)
 		self.Canvas.setYRange(0, m*4, 0)
-		self.Canvas.setXRange(0, 3*n, 0)
+		self.Canvas.setXRange(0, 1*n, 0)
 		self.Canvas.hideButtons()
+		self.Canvas.invertX(b=True)
 
 		#BOTONES
 		#Botones de Amplitud
@@ -79,12 +111,17 @@ class plot(object):
 		self.f1k.addItem(proxy6,row=0,col=0)
 		button6.clicked.connect(self.fq1k)
 
-		
+		proxy11 = QtGui.QGraphicsProxyWidget()
+		button11 = QtGui.QPushButton('1 Hz')
+		proxy11.setWidget(button11)
+		self.f1 = self.win.addLayout(row=2, col=2)
+		self.f1.addItem(proxy11,row=0,col=0)
+		button11.clicked.connect(self.fq1)
 
-		self.label1=self.win.addLayout(row=1,col=2,rowspan=2)
+		"""self.label1=self.win.addLayout(row=1,col=2)
 		self.label1.addLabel(text='Selector de Canales',row=0,col=0)
 
-		"""self.label2=self.win.addLayout(row=3,col=0)
+		self.label2=self.win.addLayout(row=3,col=0)
 		self.label2.addLabel(text='Selector de Amplitud',row=0,col=0)
 
 		self.label3=self.win.addLayout(row=4,col=0)
@@ -121,40 +158,31 @@ class plot(object):
 
 	#FUNCIONES DE AMPLITUD
 	def Vt03(self):
-		axisY = [(0,' '),(0.3*1,' '),(0.3*2,' '),(0.3*3,' '),(0.3*4,'V')]
+		axisY = [(0,'0'),(0.3*1,'0.3'),(0.3*2,'0.6'),(0.3*3,'0.9'),(0.3*4,'1.2')]
 		self.CaxisY.setTicks([axisY])
 		self.Canvas.setYRange(0, 0.3*4, 0)
 	def Vt1(self):
-		axisY = [(0,' '),(1,' '),(2,' '),(3,' '),(4,'V')]
+		axisY = [(0,'0'),(1,'1'),(2,'2'),(3,'3'),(4,'4')]
 		self.CaxisY.setTicks([axisY])
 		self.Canvas.setYRange(0, 4, 0)
 	def Vt3(self):
-		axisY = [(0,' '),(3*1,' '),(3*2,' '),(3*3,' '),(3*4,'V')]
+		axisY = [(0,'0'),(3*1,'3'),(3*2,'6'),(3*3,'9'),(3*4,'12')]
 		self.CaxisY.setTicks([axisY])
 		self.Canvas.setYRange(0, 3*4, 0)
 
 	#FUNCIONES DE FRECUENCIA
 	def fq10(self):
 		n = 1/10
-		axisX = [(n*0.2,' '),(n*0.4,' '),(n*0.6,' '),(n*0.8,' '),(n*1,' '),
-				(n*1.2,' '),(n*1.4,' '),(n*1.6,' '),(n*1.8,' '),(n*2,' '),
-				(n*2.2,' '),(n*2.4,' '),(n*2.6,' '),(n*2.8,' '),(n*3,'seg')]
-		self.CaxisX.setTicks([axisX])
-		self.Canvas.setXRange(0.2*n, 3*n, 0)
+		self.Canvas.setXRange(0, 1*n, 0)
 	def fq100(self):
 		n = 1/100
-		axisX = [(n*0.2,' '),(n*0.4,' '),(n*0.6,' '),(n*0.8,' '),(n*1,' '),
-				(n*1.2,' '),(n*1.4,' '),(n*1.6,' '),(n*1.8,' '),(n*2,' '),
-				(n*2.2,' '),(n*2.4,' '),(n*2.6,' '),(n*2.8,' '),(n*3,'seg')]
-		self.CaxisX.setTicks([axisX])
-		self.Canvas.setXRange(0.2*n, 3*n, 0)
+		self.Canvas.setXRange(0, 1*n, 0)
 	def fq1k(self):
 		n = 1/1000
-		axisX = [(n*0.2,' '),(n*0.4,' '),(n*0.6,' '),(n*0.8,' '),(n*1,' '),
-				(n*1.2,' '),(n*1.4,' '),(n*1.6,' '),(n*1.8,' '),(n*2,' '),
-				(n*2.2,' '),(n*2.4,' '),(n*2.6,' '),(n*2.8,' '),(n*3,'seg')]
-		self.CaxisX.setTicks([axisX])
-		self.Canvas.setXRange(0.2*n, 3*n, 0)
+		self.Canvas.setXRange(0, 1*n, 0)
+	def fq1(self):
+		n = 1
+		self.Canvas.setXRange(0, 1*n, 0)
 
 	#FUNCIONES CANALES
 	def chn1(self):
@@ -184,40 +212,55 @@ class plot(object):
 		if(sys.flags.interactive != 1) or not hasattr(pg.Qtcore,'graficas'):
 			pg.QtGui.QApplication.instance().exec_()
 	
-
-# if sys.flags.interactive != 1 or not hasattr(pg.QtCore, 'PYQT_VERSION'):
-        #pg.QtGui.QApplication.exec_()
-
 	def trace(self,name,dataset_x,dataset_y,color):
 		if name in self.traces:
 			self.traces[name].setData(dataset_x,dataset_y)
 		else:
-			self.traces[name] = self.Canvas.plot(pen=pg.mkPen(color))
+			self.traces[name] = self.Canvas.plot(pen=color)#,symbolBrush=color,symbolPen=color)
 
 	def update(self):
-		ch1, ch2, chd1, chd2 = Serial.serial()
-		zero = np.zeros(Serial.numdatos())
+		if self.lectura1 == True:
+			i = 0
+			for i in range(10):
+				ch1, ch2, chd1, chd2 = serial()
+				self.pch1.extend(ch1)
+				self.pch2.extend(ch2)
+				self.pchd1.extend(chd1)
+				self.pchd2.extend(chd2)
+			self.lectura1=False
+		else:
+			del self.pch1[:200]
+			del self.pch2[:200]
+			del self.pchd1[:200]
+			del self.pchd2[:200]
+			ch1, ch2, chd1, chd2 = serial()
+			self.pch1.extend(ch1)
+			self.pch2.extend(ch2)
+			self.pchd1.extend(chd1)
+			self.pchd2.extend(chd2)
+
+		zero = np.zeros(2000)
 		if self.c1 == True:
-			self.trace("CH1",self.t,ch1,'y')
+			self.trace("CH1",self.t,self.pch1,'y')
 		else:
 			self.trace("CH1",self.t,zero,'k')
 		if self.c2 == True:
-			self.trace("CH2",self.t,ch2,'r')
+			self.trace("CH2",self.t,self.pch2,'r')
 		else:
 			self.trace("CH2",self.t,zero,'k')
 		if self.cd1 == True:
-			self.trace("CHD1",self.t,chd1,'y')
+			self.trace("CHD1",self.t,self.pchd1,'y')
 		else:
 			self.trace("CHD1",self.t,zero,'k')
 		if self.cd2 == True:
-			self.trace("CHD2",self.t,chd2,'r')
+			self.trace("CHD2",self.t,self.pchd2,'r')
 		else:
 			self.trace("CHD2",self.t,zero,'k')
 		
 	def animation(self):
 		timer = QtCore.QTimer()
 		timer.timeout.connect(self.update)
-		timer.start(500)
+		timer.start(90) #De usarse symbolBrush y symbolPen cambiar el tiempo a 0.5 o menos, ya que tarda mucho en graficar y el buffer se llena, sino dejarlo en 90
 		self.start()
 
 if __name__ == '__main__':
