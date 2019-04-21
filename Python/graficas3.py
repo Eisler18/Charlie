@@ -50,7 +50,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		self.pantalla.setAntialiasing(aa=True)
 		self.app=QtGui.QApplication(sys.argv)
 		
-		self.c1 = True
+		self.c1 = True        #Habilita los 4 canales y despues habilita la lectura de datos
 		self.c2 = True
 		self.cd1 = True
 		self.cd2 = True
@@ -63,7 +63,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		#self.win=pg.GraphicsWindow()
 		#self.pantalla.resize(550,250)
 		#self.win.setWindowTitle('pyqtgraph example')
-		self.traces= dict()
+		self.traces= dict()                                    #Creacion y definicion de los ejes
 		self.t= np.arange(0, 1, 1/2000)
 		n = 1
 		m = 1
@@ -78,8 +78,8 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		self.Canvas.invertX(b=True)
 
 
-		#Escala de volt
-		self.PerillaAmp.setTracking(True)
+		#Escala de volt          
+		self.PerillaAmp.setTracking(True)                           #Cada vez que se mueva la perilla entra en la funcion respectiva
 		self.PerillaAmp.valueChanged.connect(self.changebasevolt)
 
 		#Escala de tiempo
@@ -87,7 +87,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		self.PerillaTiempo.valueChanged.connect(self.changebasetime)
 
 		#Seleccion de canales 
-		self.Canal1.stateChanged.connect(self.cha1)
+		self.Canal1.stateChanged.connect(self.cha1)                #Encedido y apagado de los canales
 		self.Canal2.stateChanged.connect(self.cha2)
 		#Canales Digitales
 		self.Canaldig1.stateChanged.connect(self.chd1)
@@ -103,8 +103,8 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		else:
 			self.traces[name] = self.Canvas.plot(pen=color)#,symbolBrush=color,symbolPen=color)
 
-	def update(self):
-		if self.lectura1 == True:
+	def update(self):                            
+		if self.lectura1 == True:            #Bucle para la lectura de los datos                    
 			i = 0
 			for i in range(10):
 				ch1, ch2, chd1, chd2 = serial()
@@ -149,7 +149,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		self.start()
 
 
-	def changebasevolt(self):
+	def changebasevolt(self):                         #Funciones para los botones 
 		value = self.PerillaAmp.value()
 		if value == 1:
 			axisY = [(0,'0'),(0.3*1,'0.3'),(0.3*2,'0.6'),(0.3*3,'0.9'),(0.3*4,'1.2')]
