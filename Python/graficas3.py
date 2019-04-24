@@ -21,27 +21,26 @@ def serial():
 	ndatos = 200
 	i = 0
 
-	byte1 = s.read(1)
-	while byte1 > b'\x80':
+	byte1 = s.read(1) #Lee un byte
+	while byte1 > b'\x80': #Si el byte comienza por 0, vuelve a leer
 		byte1 = s.read(1) 
-	datos = s.read(799)
+	datos = s.read(799) #Si comienza por 1, lee el resto de los datos
 	
 	channel1.append(((ord(byte1) << 6)|(datos[0] & 63))/1024)
 
-	for i in range(200):
+	for i in range(200): #Decodificacion
 		if i != 0:
 			channel1.append(((datos[4*(i-1)+3] << 6)|(datos[4*(i-1)+4] & 63))/1024)
 		channeld1.append(((datos[4*i]) & 64) >> 6)
 		channeld2.append((datos[4*i+1] & 64) >> 6)
 		channel2.append((((datos[4*i+1] & 63) << 6)|(datos[4*i+2] & 63))/1024)
 
-	#buf = str(s.in_waiting)
-	#print(buf)
 	return channel1, channel2, channeld1, channeld2
 
 
 class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 	def __init__(self):
+		#Inicializar
 		QtGui.QMainWindow.__init__(self)
 		Ui_MainWindow.__init__(self)
 		self.setupUi(self)
@@ -49,7 +48,8 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		self.pantalla.setBackground(background='w')
 		self.pantalla.setAntialiasing(aa=True)
 		self.app=QtGui.QApplication(sys.argv)
-		
+
+		#Variables auxiliares
 		self.c1 = True
 		self.c2 = True
 		self.cd1 = True
@@ -60,9 +60,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		self.pchd1=[]
 		self.pchd2=[]
 		
-		#self.win=pg.GraphicsWindow()
-		#self.pantalla.resize(550,250)
-		#self.win.setWindowTitle('pyqtgraph example')
+		#Crear la ventana de la grafica
 		self.traces= dict()
 		self.t= np.arange(0, 1, 1/2000)
 		n = 1
@@ -87,6 +85,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		self.PerillaTiempo.valueChanged.connect(self.changebasetime)
 
 		#Seleccion de canales 
+		#Canales Analogicos
 		self.Canal1.stateChanged.connect(self.cha1)
 		self.Canal2.stateChanged.connect(self.cha2)
 		#Canales Digitales
@@ -97,14 +96,15 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		if(sys.flags.interactive != 1) or not hasattr(pg.Qtcore,'graficas'):
 			pg.QtGui.QApplication.instance().exec_()
 	
-	def trace(self,name,dataset_x,dataset_y,color):
+	def trace(self,name,dataset_x,dataset_y,color): #Graficar
 		if name in self.traces:
 			self.traces[name].setData(dataset_x,dataset_y)
 		else:
-			self.traces[name] = self.Canvas.plot(pen=color)#,symbolBrush=color,symbolPen=color)
+			self.traces[name] = self.Canvas.plot(pen=color) 
+			#self.traces[name] = self.Canvas.plot(pen=color,symbolBrush=color,symbolPen=color) #Observar puntos de muestreo
 
-	def update(self):
-		if self.lectura1 == True:
+	def update(self): #Actualizar datos
+		if self.lectura1 == True: #Primera lectura debe leer 10 veces del serial
 			i = 0
 			for i in range(10):
 				ch1, ch2, chd1, chd2 = serial()
@@ -113,7 +113,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 				self.pchd1.extend(chd1)
 				self.pchd2.extend(chd2)
 			self.lectura1=False
-		else:
+		else: #Siguientes lecturas: eliminar los 200 datos más viejos y leer nuevos
 			del self.pch1[:200]
 			del self.pch2[:200]
 			del self.pchd1[:200]
@@ -124,7 +124,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 			self.pchd1.extend(chd1)
 			self.pchd2.extend(chd2)
 
-		zero = np.zeros(2000)
+		zero = np.zeros(2000) #Para deshabilitar un canal
 		if self.c1 == True:
 			self.trace("CH1",self.t,self.pch1,'b')
 		else:
@@ -142,13 +142,14 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 		else:
 			self.trace("CHD2",self.t,zero,'w')
 		
-	def animation(self):
+	def animation(self): #Timer de actualizacion
 		timer = QtCore.QTimer()
 		timer.timeout.connect(self.update)
 		timer.start(90) #De usarse symbolBrush y symbolPen cambiar el tiempo a 0.5 o menos, ya que tarda mucho en graficar y el buffer se llena, sino dejarlo en 90
 		self.start()
 
 
+	#FUNCION PERILLA DE VOLTAJE
 	def changebasevolt(self):
 		value = self.PerillaAmp.value()
 		if value == 1:
@@ -164,6 +165,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 				self.CaxisY.setTicks([axisY])
 				self.Canvas.setYRange(0, 3*4, 0)
 
+	#FUNCION PERILLA DE TIEMPO
 	def changebasetime(self):
 		value = self.PerillaTiempo.value()
 		if value == 1:
